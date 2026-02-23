@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>IMVU TV Player</title>
+
+<style>
+/* ===== Layout ===== */
+
+body{
+  margin:0;
+  background:#0d0d0d;
+  font-family:Arial, Helvetica, sans-serif;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+
+.player{
+  width:100%;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+}
+
+/* ===== Video ===== */
+
+iframe{
+  flex:1;
+  width:100%;
+  border:none;
+  background:black;
+}
+
+/* ===== Controls ===== */
+
+.controls{
+  display:flex;
+  gap:8px;
+  padding:10px;
+  background:#111;
+}
+
+input{
+  flex:1;
+  padding:10px;
+  background:#1c1c1c;
+  border:none;
+  color:white;
+  border-radius:8px;
+  font-size:14px;
+}
+
+button{
+  padding:10px 16px;
+  background:#ff0033;
+  border:none;
+  color:white;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+button:hover{
+  opacity:.85;
+}
+</style>
+</head>
+
+<body>
+
+<div class="player">
+
+  <iframe
+    id="yt"
+    src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1"
+    allow="autoplay">
+  </iframe>
+
+  <div class="controls">
+    <input id="url" placeholder="Paste YouTube link or ID">
+    <button onclick="loadVideo()">Play</button>
+    <button onclick="clearVideo()">Stop</button>
+  </div>
+
+</div>
+
+<script>
+function getVideoID(url){
+  if(url.includes("v=")) return url.split("v=")[1].split("&")[0];
+  if(url.includes("youtu.be/")) return url.split("youtu.be/")[1];
+  return url;
+}
+
+function loadVideo(){
+  const input = document.getElementById("url").value.trim();
+  const id = getVideoID(input);
+  document.getElementById("yt").src =
+    "https://www.youtube.com/embed/" + id + "?autoplay=1";
+}
+
+function clearVideo(){
+  document.getElementById("yt").src = "";
+}
+</script>
+
+</body>
+</html>
