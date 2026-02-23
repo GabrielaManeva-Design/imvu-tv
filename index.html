@@ -2,68 +2,73 @@
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>IMVU TV Player</title>
+<title>IMVU TV Player Pro</title>
 
 <style>
-/* ===== Layout ===== */
-
 body{
   margin:0;
-  background:#0d0d0d;
+  background:#0f0f0f;
   font-family:Arial, Helvetica, sans-serif;
+  color:white;
   display:flex;
-  justify-content:center;
-  align-items:center;
   height:100vh;
 }
 
 .player{
-  width:100%;
-  height:100%;
   display:flex;
   flex-direction:column;
-}
-
-/* ===== Video ===== */
-
-iframe{
-  flex:1;
   width:100%;
-  border:none;
-  background:black;
 }
 
-/* ===== Controls ===== */
+/* video */
+#player{
+  flex:1;
+}
 
+/* controls bar */
 .controls{
   display:flex;
   gap:8px;
   padding:10px;
-  background:#111;
-}
-
-input{
-  flex:1;
-  padding:10px;
-  background:#1c1c1c;
-  border:none;
-  color:white;
-  border-radius:8px;
-  font-size:14px;
+  background:#141414;
+  align-items:center;
 }
 
 button{
-  padding:10px 16px;
   background:#ff0033;
   border:none;
   color:white;
+  padding:8px 14px;
   border-radius:8px;
   cursor:pointer;
   font-weight:bold;
 }
 
-button:hover{
-  opacity:.85;
+input{
+  background:#1e1e1e;
+  border:none;
+  color:white;
+  padding:8px;
+  border-radius:8px;
+}
+
+/* playlist */
+.playlist{
+  background:#101010;
+  height:120px;
+  overflow-y:auto;
+  font-size:13px;
+  padding:6px;
+}
+
+.song{
+  padding:6px;
+  cursor:pointer;
+  border-radius:6px;
+}
+
+.song:hover{
+  background:#222;
 }
 </style>
 </head>
@@ -72,36 +77,106 @@ button:hover{
 
 <div class="player">
 
-  <iframe
-    id="yt"
-    src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1"
-    allow="autoplay">
-  </iframe>
+  <!-- YouTube player -->
+  <div id="player"></div>
 
+  <!-- controls -->
   <div class="controls">
     <input id="url" placeholder="Paste YouTube link or ID">
-    <button onclick="loadVideo()">Play</button>
-    <button onclick="clearVideo()">Stop</button>
+    <button onclick="addToPlaylist()">Add</button>
+    <button onclick="playVideo()">▶</button>
+    <button onclick="pauseVideo()">⏸</button>
+    <input type="range" min="0" max="100" value="80" oninput="setVolume(this.value)">
   </div>
+
+  <!-- playlist -->
+  <div id="playlist" class="playlist"></div>
 
 </div>
 
+<!-- YouTube API -->
+<script src="https://www.youtube.com/iframe_api"></script>
+
 <script>
-function getVideoID(url){
+let player;
+let playlist = [];
+let currentIndex = 0;
+
+function onYouTubeIframeAPIReady(){
+  player = new YT.Player('player', {
+    height: '100%',
+    width: '100%',
+    videoId: '',
+    playerVars:{autoplay:0, controls:0},
+    events:{
+      'onStateChange': onPlayerStateChange
+    }
+  });
+}
+
+/* ===== basic controls ===== */
+
+function playVideo(){ player.playVideo(); }
+function pauseVideo(){ player.pauseVideo(); }
+function setVolume(v){ player.setVolume(v); }
+
+/* ===== playlist system ===== */
+
+function getID(url){
   if(url.includes("v=")) return url.split("v=")[1].split("&")[0];
   if(url.includes("youtu.be/")) return url.split("youtu.be/")[1];
   return url;
 }
 
-function loadVideo(){
-  const input = document.getElementById("url").value.trim();
-  const id = getVideoID(input);
-  document.getElementById("yt").src =
-    "https://www.youtube.com/embed/" + id + "?autoplay=1";
+async function addToPlaylist(){
+  let input = document.getElementById("url");
+  let id = getID(input.value.trim());
+  if(!id) return;
+
+  let title = await fetchTitle(id);
+
+  playlist.push({id,title});
+  renderPlaylist();
+
+  input.value="";
 }
 
-function clearVideo(){
-  document.getElementById("yt").src = "";
+function renderPlaylist(){
+  let list = document.getElementById("playlist");
+  list.innerHTML="";
+
+  playlist.forEach((song,i)=>{
+    let div=document.createElement("div");
+    div.className="song";
+    div.textContent=(i+1)+". "+song.title;
+    div.onclick=()=>playIndex(i);
+    list.appendChild(div);
+  });
+}
+
+function playIndex(i){
+  currentIndex=i;
+  player.loadVideoById(playlist[i].id);
+}
+
+/* autoplay next */
+function onPlayerStateChange(e){
+  if(e.data==0 && playlist.length>0){
+    currentIndex=(currentIndex+1)%playlist.length;
+    playIndex(currentIndex);
+  }
+}
+
+/* ===== fetch youtube titles (all languages supported) ===== */
+
+async function fetchTitle(id){
+  try{
+    let res = await fetch("https://noembed.com/embed?url=https://www.youtube.com/watch?v="+id);
+    let data = await res.json();
+    return data.title || "Video";
+  }catch{
+    return "Video";
+  }
 }
 </script>
 
