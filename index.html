@@ -1,126 +1,145 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8" />
-<title>IMVU TV Player Pro</title>
+<meta charset="UTF-8"/>
+<title>IMVU TV Player</title>
 
 <style>
 body{
   margin:0;
-  background:#0f0f0f;
-  font-family:Arial, Helvetica, sans-serif;
+  background:#0b0b0c;
+  font-family:Segoe UI, Arial;
   color:white;
-  display:flex;
   height:100vh;
-}
-
-.player{
   display:flex;
-  flex-direction:column;
-  width:100%;
 }
 
-/* video */
+/* layout */
+.wrapper{
+  display:flex;
+  width:100%;
+  height:100%;
+}
+
+/* video area */
 #player{
   flex:1;
+  background:black;
 }
 
-/* controls bar */
-.controls{
-  display:flex;
-  gap:8px;
-  padding:10px;
-  background:#141414;
-  align-items:center;
-}
-
-button{
-  background:#ff0033;
-  border:none;
-  color:white;
-  padding:8px 14px;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:bold;
-}
-
-input{
-  background:#1e1e1e;
-  border:none;
-  color:white;
-  padding:8px;
-  border-radius:8px;
-}
-
-/* playlist */
+/* right playlist drawer */
 .playlist{
-  background:#101010;
-  height:120px;
+  width:240px;
+  background:#111216;
+  display:flex;
+  flex-direction:column;
+  border-left:1px solid #1f1f22;
+}
+
+.playlist h3{
+  margin:12px;
+  font-size:14px;
+  opacity:.7;
+}
+
+#songs{
+  flex:1;
   overflow-y:auto;
-  font-size:13px;
-  padding:6px;
 }
 
 .song{
-  padding:6px;
+  padding:10px 12px;
+  font-size:13px;
   cursor:pointer;
-  border-radius:6px;
+  border-radius:8px;
+  margin:4px 8px;
 }
 
 .song:hover{
-  background:#222;
+  background:#1e1f24;
+}
+
+/* bottom controls */
+.controls{
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:240px;
+
+  display:flex;
+  gap:8px;
+  padding:10px;
+
+  background:rgba(20,20,25,.9);
+  backdrop-filter:blur(8px);
+}
+
+input{
+  flex:1;
+  background:#1b1c20;
+  border:none;
+  color:white;
+  padding:10px;
+  border-radius:10px;
+}
+
+button{
+  background:#ff2d55;
+  border:none;
+  color:white;
+  padding:10px 16px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+button:hover{
+  opacity:.85;
+}
+
+.volume{
+  width:90px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="player">
+<div class="wrapper">
 
-  <!-- YouTube player -->
   <div id="player"></div>
 
-  <!-- controls -->
-  <div class="controls">
-    <input id="url" placeholder="Paste YouTube link or ID">
-    <button onclick="addToPlaylist()">Add</button>
-    <button onclick="playVideo()">▶</button>
-    <button onclick="pauseVideo()">⏸</button>
-    <input type="range" min="0" max="100" value="80" oninput="setVolume(this.value)">
+  <div class="playlist">
+    <h3>PLAYLIST</h3>
+    <div id="songs"></div>
   </div>
-
-  <!-- playlist -->
-  <div id="playlist" class="playlist"></div>
 
 </div>
 
-<!-- YouTube API -->
+<div class="controls">
+  <input id="url" placeholder="Paste YouTube link or ID">
+  <button onclick="addSong()">Add</button>
+  <button onclick="player.playVideo()">Play</button>
+  <button onclick="player.pauseVideo()">Pause</button>
+  <input class="volume" type="range" min="0" max="100" value="80"
+         oninput="player.setVolume(this.value)">
+</div>
+
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
 let player;
-let playlist = [];
-let currentIndex = 0;
+let playlist=[];
+let current=0;
 
 function onYouTubeIframeAPIReady(){
-  player = new YT.Player('player', {
-    height: '100%',
-    width: '100%',
-    videoId: '',
-    playerVars:{autoplay:0, controls:0},
-    events:{
-      'onStateChange': onPlayerStateChange
-    }
+  player=new YT.Player('player',{
+    width:'100%',
+    height:'100%',
+    playerVars:{controls:0},
+    events:{onStateChange:onEnd}
   });
 }
-
-/* ===== basic controls ===== */
-
-function playVideo(){ player.playVideo(); }
-function pauseVideo(){ player.pauseVideo(); }
-function setVolume(v){ player.setVolume(v); }
-
-/* ===== playlist system ===== */
 
 function getID(url){
   if(url.includes("v=")) return url.split("v=")[1].split("&")[0];
@@ -128,55 +147,47 @@ function getID(url){
   return url;
 }
 
-async function addToPlaylist(){
-  let input = document.getElementById("url");
-  let id = getID(input.value.trim());
+async function addSong(){
+  let input=document.getElementById("url");
+  let id=getID(input.value.trim());
   if(!id) return;
 
-  let title = await fetchTitle(id);
+  let title=await fetchTitle(id);
 
   playlist.push({id,title});
-  renderPlaylist();
-
+  render();
   input.value="";
 }
 
-function renderPlaylist(){
-  let list = document.getElementById("playlist");
+function render(){
+  let list=document.getElementById("songs");
   list.innerHTML="";
 
-  playlist.forEach((song,i)=>{
+  playlist.forEach((s,i)=>{
     let div=document.createElement("div");
     div.className="song";
-    div.textContent=(i+1)+". "+song.title;
-    div.onclick=()=>playIndex(i);
+    div.textContent=(i+1)+". "+s.title;
+    div.onclick=()=>play(i);
     list.appendChild(div);
   });
 }
 
-function playIndex(i){
-  currentIndex=i;
+function play(i){
+  current=i;
   player.loadVideoById(playlist[i].id);
 }
 
-/* autoplay next */
-function onPlayerStateChange(e){
-  if(e.data==0 && playlist.length>0){
-    currentIndex=(currentIndex+1)%playlist.length;
-    playIndex(currentIndex);
+function onEnd(e){
+  if(e.data==0 && playlist.length){
+    current=(current+1)%playlist.length;
+    play(current);
   }
 }
 
-/* ===== fetch youtube titles (all languages supported) ===== */
-
 async function fetchTitle(id){
-  try{
-    let res = await fetch("https://noembed.com/embed?url=https://www.youtube.com/watch?v="+id);
-    let data = await res.json();
-    return data.title || "Video";
-  }catch{
-    return "Video";
-  }
+  let r=await fetch("https://noembed.com/embed?url=https://youtube.com/watch?v="+id);
+  let j=await r.json();
+  return j.title||"Video";
 }
 </script>
 
